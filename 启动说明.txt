@@ -1,19 +1,39 @@
-代码放在test的bilisum文件夹下
 
-进入Windows终端，选Ubuntu界面，进入默认的目录cd /home/jiecow/，
+jiecow@LAPTOP-17VM75NE:~$ git clone https://github.com/jiecow/bilisum
 
-cd /home/jiecow/test
+拉取bilisum存在问题：系统拒绝修改python环境等，文件名大小写，
+问cc启动全步骤
 
-source bilisum/.venv/bin/activate
+完整启动步骤总结
+以后每次启动，只需以下 4 步：
 
-export DEEPSEEK_API_KEY="空"
+cd ~/bilisum
 
-python3 -m bilisum.run
-----------
-3015端口被上一个服务占用了，先停掉再启动：
+# 1. 激活虚拟环境
+source venv/bin/activate
+
+# 2. 设置 API Key（如果已过期，去 https://platform.deepseek.com/api_keys 重新申请）
+export DEEPSEEK_API_KEY="sk-e3dc1a065de343f6a590ca215cc306f6"
+
+# 3. 如果端口被占用，先杀掉旧进程
 kill $(lsof -ti:3015)
----
-DEEPSEEK_API_KEY="sk-e3dc1a065de343f6a590ca215cc306f6"会定期失效。
-重新到https://platform.deepseek.com/api_keys申请
-deepseek账号邮箱12****20@qq.com
-微信已绑定 手机号码130******00
+
+# 4. 启动
+python3 run.py
+
+▎ 注意：文件夹已从 BiliSum 重命名为 bilisum（小写），因为代码里 import 用的就是 bilisum，Linux 区分大小写必须一致。
+
+浏览器http://localhost:3015/
+
+==============
+
+修改后的代码重新推送github
+全部完成！以下是操作总结：
+
+✅ 已完成
+
+1. 创建了 GitHub 仓库 — https://github.com/jiecow/bilisum（公开仓库）
+2. 更新了远程地址 — 从旧的 BiliSum 改为新的 bilisum
+3. 推送了所有代码 — 包含所有历史提交（5个 commit）
+4. 提交并推送了最新的修改 — 修复了 run.py 中的模块搜索路径问题
+5. 本地分支重命名 — master → main，与远程一致
