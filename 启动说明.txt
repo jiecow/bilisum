@@ -6,7 +6,7 @@ cd /home/jiecow/test
 
 source bilisum/.venv/bin/activate
 
-export DEEPSEEK_API_KEY="sk-e3dc1a065de343f6a590ca215cc306f6"
+export DEEPSEEK_API_KEY="空"
 
 python3 -m bilisum.run
 ----------
