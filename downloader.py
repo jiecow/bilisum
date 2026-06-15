@@ -145,9 +145,9 @@ def download_audio(url: str, output_dir: str) -> str:
     audio_url = _get_audio_url(bvid, info["cid"])
     logger.info("Audio URL obtained (length: %d chars)", len(audio_url))
 
-    # Sanitize filename
-    safe_title = re.sub(r'[\\/*?:"<>|]', "", info["title"]).strip()[:100]
-    m4a_path = os.path.join(output_dir, f"{safe_title}.m4a")
+    # Use BV号 for unique filename (titles can collide)
+    safe_title = re.sub(r'[\\/*?:"<>|]', "", info["title"]).strip()[:40]
+    m4a_path = os.path.join(output_dir, f"{bvid}_{safe_title}.m4a")
 
     # Download via FFmpeg (Bilibili audio stream is AAC in m4s container)
     logger.info("Downloading audio to: %s", m4a_path)

@@ -97,6 +97,39 @@ def _start_processing(task_id: str):
     thread.start()
 
 
+def _start_next_queued():
+    """Pick up the oldest queued task and start processing it."""
+    global _current_task
+    with _current_task_lock:
+        if _current_task is not None:
+            return  # already running
+        # Find oldest queued task
+        queued = None
+        tasks_dir = config.TRANSCRIPTS_DIR
+        if os.path.exists(tasks_dir):
+            for fname in sorted(os.listdir(tasks_dir)):
+                if fname.endswith(".json"):
+                    path = os.path.join(tasks_dir, fname)
+                    try:
+                        with open(path, "r", encoding="utf-8") as f:
+                            data = json.load(f)
+                        if data.get("status") == "queued":
+                            if queued is None or data.get("created_at", "") < queued.get("created_at", ""):
+                                queued = data
+                    except (json.JSONDecodeError, OSError):
+                        continue
+        if queued is None:
+            return
+        _current_task = queued["id"]
+
+    task_id = queued["id"]
+    url = queued.get("url", "")
+    if url:
+        _start_processing(task_id)
+    else:
+        _start_import_processing(task_id)
+
+
 def _update_task(task_id: str, **kwargs):
     task = _load_task(task_id)
     task.update(**kwargs)
@@ -198,6 +231,7 @@ def _run_import_pipeline(task_id: str):
     finally:
         with _current_task_lock:
             _current_task = None
+        _start_next_queued()
 
 
 def _run_pipeline(task_id: str):
@@ -275,3 +309,4 @@ def _run_pipeline(task_id: str):
                     pass
         with _current_task_lock:
             _current_task = None
+        _start_next_queued()
