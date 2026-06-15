@@ -24,6 +24,14 @@ def is_bilibili_url(url: str) -> bool:
     return bool(BILIBILI_URL_PATTERN.match(url))
 
 
+def _extract_p(url: str) -> int | None:
+    """Extract p (part/page number) from Bilibili URL query parameters."""
+    m = re.search(r"[?&]p=(\d+)", url)
+    if m:
+        return int(m.group(1))
+    return None
+
+
 def _extract_bvid(url: str) -> str:
     """Extract BV id from a Bilibili URL."""
     m = re.search(r"BV[\w]+", url)
@@ -42,9 +50,14 @@ def _extract_bvid(url: str) -> str:
     raise RuntimeError(f"无法从链接中提取 BV号: {url}")
 
 
-def _get_video_info(bvid: str) -> dict:
-    """Fetch video metadata from Bilibili API (title, cid, etc)."""
+def _get_video_info(bvid: str, p: int | None = None) -> dict:
+    """Fetch video metadata from Bilibili API (title, cid, etc).
+
+    If p is specified, fetch info for that specific part/page.
+    """
     api_url = f"https://api.bilibili.com/x/web-interface/view?bvid={bvid}"
+    if p is not None:
+        api_url += f"&p={p}"
     resp = requests.get(api_url, headers=HEADERS, timeout=15)
     if resp.status_code != 200:
         raise RuntimeError(f"B站API请求失败: HTTP {resp.status_code}")
@@ -52,18 +65,26 @@ def _get_video_info(bvid: str) -> dict:
     if data.get("code") != 0:
         raise RuntimeError(f"B站API错误: {data.get('message', 'unknown')}")
     v = data["data"]
-    # Get the first page / first cid
-    cid = v["cid"]
-    # Try to find audio-only or lowest quality playable media
+    cid = v.get("cid", 0)
     pages = v.get("pages", [])
-    if pages and cid == 0:
-        cid = pages[0]["cid"]
+    if pages:
+        if p is not None and 1 <= p <= len(pages):
+            cid = pages[p - 1]["cid"]
+        elif not cid:
+            cid = pages[0]["cid"]
+    title = v.get("title", "Unknown")
+    # When p is specified, get the part sub-title if available
+    if p is not None and pages and 1 <= p <= len(pages):
+        part_title = pages[p - 1].get("part", "")
+        if part_title and part_title != title:
+            title = f"{title} (P{p} - {part_title})"
     return {
-        "title": v.get("title", "Unknown"),
+        "title": title,
         "bvid": bvid,
         "cid": cid,
         "duration": v.get("duration", 0),
         "pic": v.get("pic", ""),
+        "p": p,
     }
 
 
@@ -137,9 +158,10 @@ def download_audio(url: str, output_dir: str) -> str:
     os.makedirs(output_dir, exist_ok=True)
 
     bvid = _extract_bvid(url)
-    logger.info("Extracted BV id: %s", bvid)
+    p = _extract_p(url)
+    logger.info("Extracted BV id: %s, p=%s", bvid, p)
 
-    info = _get_video_info(bvid)
+    info = _get_video_info(bvid, p=p)
     logger.info("Video: %s (cid=%s)", info["title"], info["cid"])
 
     audio_url = _get_audio_url(bvid, info["cid"])
@@ -186,7 +208,8 @@ def extract_title(url: str) -> str:
     """Extract video title via Bilibili API."""
     try:
         bvid = _extract_bvid(url)
-        info = _get_video_info(bvid)
+        p = _extract_p(url)
+        info = _get_video_info(bvid, p=p)
         return info["title"]
     except Exception as e:
         logger.warning("Failed to extract title: %s", e)
